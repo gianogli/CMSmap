@@ -54,7 +54,11 @@ Usage
 		 cmsmap.py -k hashes.txt -w passwords.txt
 
 
-		 
+Notes
+=====
+30/03/2015: Created a new repo to remove big wordlist. Users who have originally cloned the previous repo are invited to clone the new one.
+  
+	
 Disclaimer
 =====
 Usage of CMSmap for attacking targets without prior mutual consent is illegal. 

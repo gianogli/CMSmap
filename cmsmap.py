@@ -985,14 +985,15 @@ class DruScan:
         noRedirOpener = urllib2.build_opener(NoRedirects())        
         try:
             htmltext = noRedirOpener.open(req).read()
-            #If NotExisingUser1234 returns [  ], then enumerate users
-            if htmltext == '[  ]':
+            #If NotExisingUser1234 returns [], then enumerate users
+            if htmltext == '[]':
                 for letter in self.alphanum:
                     htmltext = urllib2.urlopen(self.url+self.views+letter).read()
                     regex = '"(.+?)"'
                     pattern =  re.compile(regex)
                     usernames = usernames + re.findall(pattern,htmltext)
                 usernames = sorted(set(usernames))
+                self.usernames = usernames
                 for user in usernames:
                     msg = user; report.info(msg)
         except urllib2.HTTPError, e:
@@ -1015,6 +1016,7 @@ class DruScan:
                     if user : msg = user[0] ; report.info(msg)
                 except urllib2.HTTPError, e:
                     pass
+            usernames = sorted(set(usernames))
             self.usernames = usernames
         except urllib2.HTTPError, e:
             #print e.code

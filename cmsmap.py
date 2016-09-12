@@ -74,7 +74,7 @@ class Initialize:
         success = False
         if not self.ospath+".git":
             msg = "Git Repository Not Found. Please download the latest version of CMSmap from GitHub repository"; report.error(msg)
-            msg = "Example: git clone https://github.com/Dionach/cmsmap"; report.error(msg)
+            msg = "Example: git clone https://github.com/gianogli/CMSmap.git"; report.error(msg)
         else:
             msg = "Updating CMSmap to the latest version from GitHub repository... "; report.message(msg)
             os.chdir(self.ospath)
@@ -84,7 +84,7 @@ class Initialize:
             msg = "CMSmap is now updated to the latest version!"; report.message(msg)
         else :
             msg = " Updated could not be completed. Please download the latest version of CMSmap from GitHub repository"; report.error(msg)
-            msg = " Example: git clone https://github.com/Dionach/cmsmap"; report.error(msg)
+            msg = " Example: git clone https://github.com/gianogli/CMSmap.git"; report.error(msg)
     
     def GetWordPressPlugins(self):
         msg = "Downloading wordpress plugins from svn website"; report.message(msg)

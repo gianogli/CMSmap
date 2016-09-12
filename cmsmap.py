@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import smtplib, base64, os, sys, getopt, urllib2, urllib, re, socket, time, httplib, tarfile
 import itertools, urlparse, threading, Queue, multiprocessing, cookielib, datetime, zipfile
-import platform, signal
+import platform, signal, ssl
 from thirdparty.multipart import multipartpost
 from distutils.version import LooseVersion
 
@@ -1933,6 +1933,16 @@ if __name__ == "__main__":
     initializer = Initialize()
     bruter = BruteForcer()
     searcher = ExploitDBSearch()
+
+    # disable SSL verification in Python
+    try:
+        _create_unverified_https_context = ssl._create_unverified_context
+    except AttributeError:
+        # Legacy Python that doesn't verify HTTPS certificates by default
+        pass
+    else:
+        # Handle target environment that doesn't support HTTPS verification
+        ssl._create_default_https_context = _create_unverified_https_context
     
     if sys.argv[1:]:
         try:

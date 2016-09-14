@@ -10,6 +10,7 @@ class Initialize:
         self.agent = agent
         self.headers={'User-Agent':self.agent,}
         self.ospath = dataPath
+        self.dbpath = exploitdbPath
         self.forceUpdate = None
         # Wordpress
         self.wp_plugins = os.path.join(self.ospath,"wp_plugins.txt")
@@ -24,10 +25,14 @@ class Initialize:
         # ExploitDB 
         self.wp_exploitdb_url = "http://www.exploit-db.com/search/?action=search&filter_page=1&filter_description=Wordpress"
         self.joo_exploitdb_url = "http://www.exploit-db.com/search/?action=search&filter_page=1&filter_description=Joomla"
+        #GitHub urls
+        self.git_exploitdb_url = "https://github.com/offensive-security/exploit-database.git"
 
     def UpdateRun(self):
         if self.forceUpdate == 'C':
             self.CMSmapUpdate()
+        elif self.forceUpdate == 'E':
+            self.ExploitDBUpdate()
         elif self.forceUpdate == 'W':
             self.GetWordPressPlugins()
             msg = "Downloading WordPress plugins from ExploitDB website"; report.message(msg) 
@@ -41,6 +46,7 @@ class Initialize:
             self.GetDrupalPlugins()
         elif self.forceUpdate == 'A':
             self.CMSmapUpdate()
+            self.ExploitDBUpdate()
             self.GetWordPressPlugins()
             msg = "Downloading WordPress plugins from ExploitDB website"; report.message(msg) 
             self.GetExploitDBPlugins(self.wp_exploitdb_url, self.wp_plugins_small, 'Wordpress', 'wp-content/plugins/(.+?)/')
@@ -86,6 +92,24 @@ class Initialize:
             msg = " Updated could not be completed. Please download the latest version of CMSmap from GitHub repository"; report.error(msg)
             msg = " Example: git clone https://github.com/gianogli/CMSmap.git"; report.error(msg)
     
+    def ExploitDBUpdate(self):
+        msg = "Update the local ExploitDB archive."; report.message(msg)
+        success = False
+        if os.path.isdir(self.dbpath+"/.git"):
+            msg = "  Updating the local ExploitDB archive to the latest version from GitHub repository... "; report.message(msg)
+            os.chdir(self.dbpath)
+            process = os.system("git pull")
+            if process == 0 : success = True
+            pass
+        else:
+            msg = " Git Repository Not Found. Please download the latest version of ExploitDB archive from GitHub repository."; report.error(msg)
+            msg = " Example: git clone "+self.git_exploitdb_url+" ./"+os.path.basename(os.path.normpath(self.dbpath)); report.error(msg)
+        if success :
+            msg = " The local ExploitDB archive is now updated to the latest version!"; report.message(msg)
+        else :
+            msg = " Updated could not be completed. Please download the latest version of ExploitDB archive from GitHub repository"; report.error(msg)
+            msg = " Example: git clone "+self.git_exploitdb_url+" ./"+os.path.basename(os.path.normpath(self.dbpath)); report.error(msg)
+
     def GetWordPressPlugins(self):
         msg = "Downloading wordpress plugins from svn website"; report.message(msg)
         f = open(self.wp_plugins, "a")
@@ -1875,6 +1899,7 @@ CrackingPasswords = False
 FullScan = False
 NoExploitdb = False
 dataPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
+exploitdbPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'exploitdb')
 output = False
 threads = 5
 wordlist = 'wordlist/rockyou.txt'
@@ -1915,7 +1940,7 @@ Post Exploitation:
 
 Others:
      -v, --verbose   verbose mode (Default: false)
-     -U, --update    (C)MSmap, (W)ordpress plugins and themes, (J)oomla components, (D)rupal modules, (A)ll
+     -U, --update    (C)MSmap, (E)xploitDB archive, (W)ordpress plugins and themes, (J)oomla components, (D)rupal modules, (A)ll
      -h, --help      show this help
 
 Examples:"""

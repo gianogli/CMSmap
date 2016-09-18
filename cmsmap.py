@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import smtplib, base64, os, sys, getopt, urllib2, urllib, re, socket, time, httplib, tarfile
 import itertools, urlparse, threading, Queue, multiprocessing, cookielib, datetime, zipfile
-import platform, signal, ssl
+import platform, signal, ssl, subprocess
 from thirdparty.multipart import multipartpost
 from distutils.version import LooseVersion
 
@@ -11,6 +11,7 @@ class Initialize:
         self.headers={'User-Agent':self.agent,}
         self.ospath = dataPath
         self.dbpath = exploitdbPath
+        self.dbfilespath = exploitdbfilesPath
         self.forceUpdate = None
         # Wordpress
         self.wp_plugins = os.path.join(self.ospath,"wp_plugins.txt")
@@ -35,25 +36,25 @@ class Initialize:
             self.ExploitDBUpdate()
         elif self.forceUpdate == 'W':
             self.GetWordPressPlugins()
-            msg = "Downloading WordPress plugins from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.wp_exploitdb_url, self.wp_plugins_small, 'Wordpress', 'wp-content/plugins/(.+?)/')
-            msg = "Downloading WordPress themes from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.wp_exploitdb_url, self.wp_themes_small, 'Wordpress', 'wp-content/themes/([\w\-\_]*)/')
+            msg = "Extracting WordPress plugins from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.wp_plugins_small, 'Wordpress', 'wp-content/plugins/(.+?)/')
+            msg = "Extracting WordPress themes from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.wp_themes_small, 'Wordpress', 'wp-content/themes/([\w\-\_]*)/')
         elif self.forceUpdate == 'J':
-            msg = "Downloading Joomla components from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.joo_exploitdb_url, self.joo_plugins_small, 'Joomla', '\?option=(com.+?)\&')
+            msg = "Extracting Joomla components from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.joo_plugins_small, 'Joomla', '\?option=(com.+?)\&')
         elif self.forceUpdate == 'D':
             self.GetDrupalPlugins()
         elif self.forceUpdate == 'A':
             self.CMSmapUpdate()
             self.ExploitDBUpdate()
             self.GetWordPressPlugins()
-            msg = "Downloading WordPress plugins from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.wp_exploitdb_url, self.wp_plugins_small, 'Wordpress', 'wp-content/plugins/(.+?)/')
-            msg = "Downloading WordPress themes from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.wp_exploitdb_url, self.wp_themes_small, 'Wordpress', 'wp-content/themes/([\w\-\_]*)/')
-            msg = "Downloading Joomla components from ExploitDB website"; report.message(msg) 
-            self.GetExploitDBPlugins(self.joo_exploitdb_url, self.joo_plugins_small, 'Joomla', '\?option=(com.+?)\&')
+            msg = "Extracting WordPress plugins from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.wp_plugins_small, 'Wordpress', 'wp-content/plugins/(.+?)/')
+            msg = "Extracting WordPress themes from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.wp_themes_small, 'Wordpress', 'wp-content/themes/([\w\-\_]*)/')
+            msg = "Extracting Joomla components from ExploitDB local archive"; report.message(msg)
+            self.GetExploitDBPlugins(self.joo_plugins_small, 'Joomla', '\?option=(com.+?)\&')
             self.GetDrupalPlugins()
         else:
             msg = "Not Valid Option Provided: use (C)MSmap, (W)ordpress plugins and themes, (J)oomla components, (D)rupal modules, (A)ll"; report.message(msg)
@@ -155,48 +156,41 @@ class Initialize:
         sys.stdout.write("\r")
         sys.stdout.flush()
         msg = "Drupal Plugin File: "+ self.dru_plugins_small; report.message(msg)
-        
-    def GetExploitDBPlugins(self,exploitdb_url,plugins_small,filter_description,regex):
-        self.exploitdb_url = exploitdb_url
-        self.plugins_small = plugins_small
-        self.filter_description = filter_description
-        self.regex = regex   
-        # Append to file 
-        f = open(self.plugins_small, "a") 
-        htmltext = urllib2.urlopen(self.exploitdb_url).read()
-        regex ='filter_page=(.+?)\t\t\t.*>&gt;&gt;</a>'
-        pattern =  re.compile(regex)
-        self.pages = re.findall(pattern,htmltext)
-        if self.pages:
-            self.pages = self.pages[0]
-            msg = str(self.pages)+" total pages"; msg = report.verbose(msg)
-            # Search all page
-            for self.page in range(1,int(self.pages)):
-                time.sleep(1)
-                self.exploitdb_url_page = "http://www.exploit-db.com/search/?action=search&filter_page="+str(self.page)+"&filter_description="+self.filter_description
-                request = urllib2.Request(self.exploitdb_url_page,None,self.headers)
-                htmltext = urllib2.urlopen(request).read()
-                pattern =  re.compile('<a href="http://www.exploit-db.com/download/(.+?)/">')
-                self.ExploitID = re.findall(pattern,htmltext)
-                # Search in a single page
-                for self.Eid in self.ExploitID:
-                    htmltext = urllib2.urlopen("http://www.exploit-db.com/download/"+str(self.Eid)+"/").read()
-                    pattern =  re.compile(self.regex)
-                    self.ExploitDBplugins = re.findall(pattern,htmltext)
-                    sys.stdout.write("\r%d%%"%((100*(int(self.page)+1))/int(self.pages)))
+
+    def GetExploitDBPlugins(self,plugins_small,filter_description,regex):
+        # Verify that we first downloaded the ExploitDB local archive
+        if os.path.isfile(self.dbpath+"/searchsploit"):
+            # Search all the files related to a "filter_description" exploit
+            dbquery = self.dbpath+"/searchsploit --colour -t "+filter_description
+            dbquery_output = subprocess.check_output(dbquery, shell=True)
+            pattern = re.compile('\|\ \./(.+?\.\S*)')
+            dbfiles = re.findall(pattern, dbquery_output)
+            num_dbfiles = len(dbfiles)
+            if num_dbfiles:
+                #Extract all the plugins/themes related to the "regex" parameter
+                msg ="ExploitDB: found "+str(num_dbfiles)+" "+filter_description+" exploits!"; msg = report.verbose(msg)
+                f = open(plugins_small, "a")
+                for i in range(1,num_dbfiles):
+                    exploitdbfilepath = os.path.join(self.dbfilespath, dbfiles[i])
+                    fdb = open(exploitdbfilepath, "r")
+                    pattern = re.compile(regex)
+                    dbplugins = re.findall(pattern,fdb.read())
+                    dbplugins = sorted(set(dbplugins))
+                    sys.stdout.write("\r%d%%"%((100*(i+1))/num_dbfiles))
                     sys.stdout.flush()
-                    # Sorted Unique
-                    self.ExploitDBplugins = sorted(set(self.ExploitDBplugins))
-                    for self.plugin in self.ExploitDBplugins:
-                        sys.stdout.write("\r%d%%"% (((100*(int(self.page)+1))/int(self.pages))))
-                        if not re.search('.php',self.plugin):
+                    for plugin in dbplugins:
+                        # Save only a "real" plugin name
+                        pattern = re.compile('[.$]')
+                        if re.search(pattern,plugin) is None:
                             try:
-                                f.write("%s\n" % self.plugin)
+                                f.write("%s\n" % plugin)
                             except IndexError:
                                 pass
-        f.close()
-        sys.stdout.write("\r")
-        msg = "File: " +self.plugins_small; report.message(msg)
+                f.close()
+                sys.stdout.write("\r")
+                msg = "File: "+plugins_small+" updated!"; report.message(msg)
+        else:
+             msg = "Unable to extract "+filter_description+" plugins from the local EXploitDB archive."; report.error(msg)
 
 class Scanner:
     # Detect type of CMS -> Maybe add it to the main after Initialiazer 
@@ -1900,6 +1894,7 @@ FullScan = False
 NoExploitdb = False
 dataPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 exploitdbPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'exploitdb')
+exploitdbfilesPath = os.path.join(exploitdbPath, 'platforms')
 output = False
 threads = 5
 wordlist = 'wordlist/rockyou.txt'

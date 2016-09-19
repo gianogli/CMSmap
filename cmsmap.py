@@ -23,9 +23,6 @@ class Initialize:
         # Drupal
         self.dru_plugins = os.path.join(self.ospath,"dru_plugins.txt")
         self.dru_plugins_small = os.path.join(self.ospath,"dru_plugins_small.txt")
-        # ExploitDB 
-        self.wp_exploitdb_url = "http://www.exploit-db.com/search/?action=search&filter_page=1&filter_description=Wordpress"
-        self.joo_exploitdb_url = "http://www.exploit-db.com/search/?action=search&filter_page=1&filter_description=Joomla"
         #GitHub urls
         self.git_exploitdb_url = "https://github.com/offensive-security/exploit-database.git"
 
@@ -57,7 +54,7 @@ class Initialize:
             self.GetExploitDBPlugins(self.joo_plugins_small, 'Joomla', '\?option=(com.+?)\&')
             self.GetDrupalPlugins()
         else:
-            msg = "Not Valid Option Provided: use (C)MSmap, (W)ordpress plugins and themes, (J)oomla components, (D)rupal modules, (A)ll"; report.message(msg)
+            msg = "Not Valid Option Provided: use (C)MSmap, (E)xploitDB archive, (W)ordpress plugins and themes, (J)oomla components, (D)rupal modules, (A)ll"; report.message(msg)
             msg = "Assuming: (C)MSmap update"; report.message(msg)
             self.CMSmapUpdate()
         self.SortUniqueFile()
@@ -1135,7 +1132,7 @@ class ExploitDBSearch:
                         req = urllib2.Request("http://www.exploit-db.com/exploits/"+str(Eid)+"/",None,self.headers)
                         htmltext = urllib2.urlopen(req).read()
                         self.title = re.findall(re.compile('<title>(.+?)</title>'),htmltext)
-                        self.date = re.findall(re.compile('>Published: (.+?)</td>'),htmltext)
+                        self.date = re.findall(re.compile('>Published:</strong> (.+?)</td>'),htmltext)
                         self.verified = 'Yes'
                         if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
                         if self.title and self.date:

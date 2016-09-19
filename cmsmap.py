@@ -845,7 +845,7 @@ class JooScan:
         q = Queue.Queue(self.queue_num)        
         # Spawn all threads into code
         for u in range(self.thread_num):
-            t = ThreadScanner(self.url,self.pluginPath,"/",self.pluginsFound,self.notExistingCode,self.notExistingCode,q)
+            t = ThreadScanner(self.url,self.pluginPath,"/",self.pluginsFound,self.notExistingCode,self.notValidLen,q)
             t.daemon = True
             t.start()
         # Add all plugins to the queue

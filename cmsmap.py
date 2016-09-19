@@ -1120,69 +1120,15 @@ class ExploitDBSearch:
         
     def Core(self):
         if self.query is not None:
-            # Get this value from their classes      
-            msg = "Searching Core Vulnerabilities for version "+self.query ; report.verbose(msg)           
-            htmltext = urllib2.urlopen("http://www.exploit-db.com/search/?action=search&filter_description="+self.cmstype+"+"+self.query).read()
-            regex = '/download/(.+?)/">'
-            pattern =  re.compile(regex)
-            ExploitID = re.findall(pattern,htmltext)
-            for Eid in ExploitID:
-                # If Eid hasn't been already found, then go on
-                if Eid not in self.flagged:
-                    req = urllib2.Request("http://www.exploit-db.com/exploits/"+str(Eid)+"/",None,self.headers)
-                    htmltext = urllib2.urlopen(req).read()
-                    self.title = re.findall(re.compile('<title>(.+?)</title>'),htmltext)
-                    self.date = re.findall(re.compile('>Published: (.+?)</td>'),htmltext)
-                    self.verified = 'Yes'
-                    if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
-                    if self.title and self.date:
-                        msg = " EDB-ID: "+Eid+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&')
-                        report.medium(msg)
-                    else:
-                        msg = " EDB-ID: "+Eid; report.medium(msg)
-            self.flagged = self.flagged + ExploitID
-            self.flagged = sorted(set(self.flagged))
-        else:
-            pass
-        
-    def Plugins(self):
-        if self.query is not None:
-            msg = "Searching Vulnerable Plugins from ExploitDB website ..." ; report.verbose(msg)
-            for plugin in self.query:
-                msg =  plugin; report.info(msg)
-                if not NoExploitdb :
-                    htmltext = urllib2.urlopen("http://www.exploit-db.com/search/?action=search&filter_description="+self.cmstype+"&filter_exploit_text="+plugin).read()
-                    regex = '/download/(.+?)/">'
-                    pattern =  re.compile(regex)
-                    ExploitID = re.findall(pattern,htmltext)
-                    if plugin not in self.exclude:
-                        for Eid in ExploitID:
-                            # If Eid hasn't been already found, then go on
-                            if Eid not in self.flagged:
-                                req = urllib2.Request("http://www.exploit-db.com/exploits/"+str(Eid)+"/",None,self.headers)
-                                htmltext = urllib2.urlopen(req).read()
-                                self.title = re.findall(re.compile('<title>(.+?)</title>'),htmltext)
-                                self.date = re.findall(re.compile('>Published: (.+?)</td>'),htmltext)
-                                self.verified = 'Yes'
-                                if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
-                                if self.title and self.date:
-                                    msg = " EDB-ID: "+Eid+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&')
-                                    report.medium(msg)
-                                else:
-                                    msg = " EDB-ID: "+Eid; report.medium(msg)
-                        self.flagged = self.flagged + ExploitID
-                        self.flagged = sorted(set(self.flagged))
-        else:
-            pass
-        
-    def Themes(self):
-        if self.query is not None:
-            msg = "Searching Vulnerable Theme from ExploitDB website ..."; report.verbose(msg)
-            for theme in self.query :
-                htmltext = urllib2.urlopen("http://www.exploit-db.com/search/?action=search&filter_description="+self.cmstype+"&filter_exploit_text="+theme).read()
-                regex = '/download/(.+?)/">'
-                pattern =  re.compile(regex)
-                ExploitID = re.findall(pattern,htmltext)
+            # Get this value from their classes
+            msg = "Searching Core Vulnerabilities for "+self.cmstype+" version "+self.query+" into ExploitDB archive/website..."; report.verbose(msg)
+            # Verify that we first downloaded the ExploitDB local archive
+            if os.path.isfile(exploitdbPath+"/searchsploit"):
+                # Search all the files related to a "filter_description" exploit
+                dbquery = exploitdbPath+"/searchsploit --colour --id -t "+self.cmstype+" "+self.query
+                dbquery_output = subprocess.check_output(dbquery, shell=True)
+                pattern = re.compile('\|\ ([0-9]+?\S*)')
+                ExploitID = re.findall(pattern, dbquery_output)
                 for Eid in ExploitID:
                     # If Eid hasn't been already found, then go on
                     if Eid not in self.flagged:
@@ -1193,12 +1139,98 @@ class ExploitDBSearch:
                         self.verified = 'Yes'
                         if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
                         if self.title and self.date:
-                            msg = " EDB-ID: "+Eid+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&')
-                            report.medium(msg)
+                            msg = " EDB-ID: "+Eid+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&'); report.medium(msg)
                         else:
                             msg = " EDB-ID: "+Eid; report.medium(msg)
                 self.flagged = self.flagged + ExploitID
-                self.flagged = sorted(set(self.flagged))                
+                self.flagged = sorted(set(self.flagged))
+            else:
+                msg = "Unable to extract "+self.cmstype+" Core Vulnerabilities from the local EXploitDB archive."; report.error(msg)
+        else:
+            pass
+
+    def Plugins(self):
+        if self.query is not None:
+            msg = "Searching Plugins Vulnerabilities for "+self.cmstype+" into ExploitDB archive/website..."; report.verbose(msg)
+            for plugin in self.query:
+                msg =  plugin; report.info(msg)
+                if not NoExploitdb:
+                    # Verify that we first downloaded the ExploitDB local archive
+                    if os.path.isfile(exploitdbPath+"/searchsploit"):
+                        # Search all the files related to a CMS
+                        dbquery = exploitdbPath+"/searchsploit --colour -t "+self.cmstype
+                        dbquery_output = subprocess.check_output(dbquery, shell=True)
+                        pattern = re.compile('\|\ \./(.+?\.\S*)')
+                        dbfiles = re.findall(pattern, dbquery_output)
+                        num_dbfiles = len(dbfiles)
+                        if num_dbfiles:
+                            #Searching the vulnerabilities related to a particular plugin
+                            for i in range(1,num_dbfiles):
+                                exploitdbfilepath = os.path.join(exploitdbfilesPath, dbfiles[i])
+                                fdb = open(exploitdbfilepath, "r")
+                                pattern = re.compile('http.*/'+plugin+'/')
+                                if re.search(pattern,fdb.read()) is not None:
+                                    pattern = re.compile('.*/([0-9]+?)\.S*')
+                                    Eid = re.findall(pattern, dbfiles[i])
+                                    if plugin not in self.exclude:
+                                        # If Eid hasn't been already found, then go on
+                                        if Eid[0] not in self.flagged:
+                                            req = urllib2.Request("http://www.exploit-db.com/exploits/"+str(Eid[0])+"/",None,self.headers)
+                                            htmltext = urllib2.urlopen(req).read()
+                                            self.title = re.findall(re.compile('<title>(.+?)</title>'),htmltext)
+                                            self.date = re.findall(re.compile('>Published:</strong> (.+?)</td>'),htmltext)
+                                            self.verified = 'Yes'
+                                            if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
+                                            if self.title and self.date:
+                                                msg = " EDB-ID: "+Eid[0]+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&'); report.medium(msg)
+                                            else:
+                                                msg = " EDB-ID: "+Eid[0]; report.medium(msg)
+                                    self.flagged = self.flagged + Eid
+                                    self.flagged = sorted(set(self.flagged))
+                    else:
+                        msg = "Unable to extract "+self.cmstype+" Plugins Vulnerabilities from the local EXploitDB archive."; report.error(msg)
+        else:
+            pass
+
+    def Themes(self):
+        if self.query is not None:
+            msg = "Searching Themes Vulnerabilities for "+self.cmstype+" into ExploitDB archive/website..."; report.verbose(msg)
+            for theme in self.query:
+                msg =  theme; report.info(msg)
+                if not NoExploitdb:
+                    # Verify that we first downloaded the ExploitDB local archive
+                    if os.path.isfile(exploitdbPath+"/searchsploit"):
+                        # Search all the files related to a CMS
+                        dbquery = exploitdbPath+"/searchsploit --colour -t "+self.cmstype
+                        dbquery_output = subprocess.check_output(dbquery, shell=True)
+                        pattern = re.compile('\|\ \./(.+?\.\S*)')
+                        dbfiles = re.findall(pattern, dbquery_output)
+                        num_dbfiles = len(dbfiles)
+                        if num_dbfiles:
+                            #Searching the vulnerabilities related to a particular theme
+                            for i in range(1,num_dbfiles):
+                                exploitdbfilepath = os.path.join(exploitdbfilesPath, dbfiles[i])
+                                fdb = open(exploitdbfilepath, "r")
+                                pattern = re.compile(theme)
+                                if re.search(pattern,fdb.read()) is not None:
+                                    pattern = re.compile('.*/([0-9]+?)\.S*')
+                                    Eid = re.findall(pattern, dbfiles[i])
+                                    # If Eid hasn't been already found, then go on
+                                    if Eid[0] not in self.flagged:
+                                        req = urllib2.Request("http://www.exploit-db.com/exploits/"+str(Eid)+"/",None,self.headers)
+                                        htmltext = urllib2.urlopen(req).read()
+                                        self.title = re.findall(re.compile('<title>(.+?)</title>'),htmltext)
+                                        self.date = re.findall(re.compile('>Published:</strong> (.+?)</td>'),htmltext)
+                                        self.verified = 'Yes'
+                                        if re.search(re.compile('Not Verified'),htmltext): self.verified = 'No '
+                                        if self.title and self.date:
+                                            msg = " EDB-ID: "+Eid[0]+" Date: "+self.date[0] +" Verified: "+self.verified+" Title: "+ self.title[0].replace('&gt;', '>').replace('&lt;','<').replace('&amp;','&'); report.medium(msg)
+                                        else:
+                                            msg = " EDB-ID: "+Eid[0]; report.medium(msg)
+                                    self.flagged = self.flagged + Eid
+                                    self.flagged = sorted(set(self.flagged))
+                    else:
+                        msg = "Unable to extract "+self.cmstype+" Themes Vulnerabilities from the local EXploitDB archive."; report.error(msg)
         else:
             pass
 

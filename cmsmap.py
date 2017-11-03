@@ -1922,7 +1922,10 @@ CrackingPasswords = False
 FullScan = False
 NoExploitdb = False
 dataPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
-exploitdbPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'exploitdb')
+if os.path.isdir(os.path.dirname('/usr/share/exploitdb/')):  # Fix for Kali
+    exploitdbPath = '/usr/share/exploitdb/'
+else:
+    exploitdbPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'exploitdb')
 exploitdbfilesPath = os.path.join(exploitdbPath, 'platforms')
 output = False
 threads = 5
